@@ -5,16 +5,16 @@ import com.localweb.wagecalculatorapp.entity.User;
 import com.localweb.wagecalculatorapp.entity.WorkingDay;
 import com.localweb.wagecalculatorapp.payload.DTO.RequestDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.UserDTO;
 import com.localweb.wagecalculatorapp.repository.OffDayRepository;
 import com.localweb.wagecalculatorapp.repository.UserRepository;
 import com.localweb.wagecalculatorapp.repository.WorkingDayRepository;
 import com.localweb.wagecalculatorapp.specification.SearchCriteria;
 import com.localweb.wagecalculatorapp.specification.Specify;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
-import javax.swing.text.html.HTMLDocument;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -23,19 +23,23 @@ import java.util.Set;
 
 @org.springframework.stereotype.Service
 public class Service implements ServiceInterface{
-    UserRepository userRepository;
-    WorkingDayRepository workingDayRepository;
-    OffDayRepository offDayRepository;
+    private final UserRepository userRepository;
+    private final WorkingDayRepository workingDayRepository;
+    private final OffDayRepository offDayRepository;
+    private final ModelMapper modelMapper;
 
     @Autowired
-    public Service(UserRepository userRepository, WorkingDayRepository workingDayRepository, OffDayRepository offDayRepository) {
+    public Service(UserRepository userRepository, WorkingDayRepository workingDayRepository, OffDayRepository offDayRepository, ModelMapper modelMapper) {
         this.userRepository = userRepository;
         this.workingDayRepository = workingDayRepository;
         this.offDayRepository = offDayRepository;
+        this.modelMapper = modelMapper;
     }
 
     @Override
-    public ResponseDTO calculateWage(RequestDTO requestDTO) {
+    public List<ResponseDTO> calculateWage(RequestDTO requestDTO) {
+        List<ResponseDTO> responses = new ArrayList<>();
+
         String keyword = requestDTO.getKeyword();
         LocalDate dateFrom = requestDTO.getDateFrom();
         LocalDate dateTo = requestDTO.getDateTo();
@@ -55,39 +59,52 @@ public class Service implements ServiceInterface{
             users.addAll(userList);
         }
 
-        int amount;
+        Specify<WorkingDay> specifyByDateFrom = new Specify<>(new SearchCriteria("date", ">", dateFrom));
+        Specify<WorkingDay> specifyByDateTo = new Specify<>(new SearchCriteria("date", "<", dateTo));
+
+        double amount;
 
         for (User user : users)
         {
             amount = 0;
+            double hourly = user.getWage()/176.0;
 
             Specify<WorkingDay> specifyByUser = new Specify<>(new SearchCriteria("user", ":", user));
-            Specify<WorkingDay> specifyByDateFrom = new Specify<>(new SearchCriteria("date", ">", dateFrom));
-            Specify<WorkingDay> specifyByDateTo = new Specify<>(new SearchCriteria("date", "<", dateFrom));
 
             List<WorkingDay> workingDays = workingDayRepository.findAll(
                     Specification.where(specifyByUser).and(specifyByDateFrom).and(specifyByDateTo));
 
-            List<LocalDate> dates = new ArrayList<>();
             for(WorkingDay workingDay : workingDays)
-                dates.add(workingDay.getDate());
-            for(LocalDate date : dates)
             {
-
+                int hours = workingDay.getHours();
+                if(!isHoliday(workingDay.getDate()))
+                    if(hours<=8)
+                        amount+=hourly*hours;
+                    else
+                        amount+=8*hourly + (hours-8)*hourly*1.5;
+                else
+                    if(hours<=8)
+                        amount+=hours*hourly*1.5;
+                    else
+                        amount+=8*hourly*1.5 + (hours-8)*hourly*2.0;
             }
+            ResponseDTO response = new ResponseDTO();
+            response.setAmount(amount);
+            response.setDateFrom(dateFrom);
+            response.setDateTo(dateTo);
+            response.setUserDTO(modelMapper.map(user, UserDTO.class));
+            responses.add(response);
         }
-
-        return null;
+        return responses;
     }
 
-    private boolean isHoliday(WorkingDay workingDay)
+    private boolean isHoliday(LocalDate date)
     {
-        LocalDate workDate = workingDay.getDate();
         List<OffDay> offDays = offDayRepository.findAll();
         List<LocalDate> offDates = new ArrayList<>();
         for(OffDay offDay : offDays)
             offDates.add(offDay.getDate());
-        return offDates.contains(workDate);
+        return offDates.contains(date);
     }
 
 }

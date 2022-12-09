@@ -1,15 +1,21 @@
 package com.localweb.wagecalculatorapp.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+import org.hibernate.Hibernate;
 import org.hibernate.annotations.LazyCollection;
 import org.hibernate.annotations.LazyCollectionOption;
 
 import java.time.LocalDate;
+import java.util.Objects;
 
 @Entity
 @Table(name = "working_days")
-@Data
+@Getter
+@Setter
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
 public class WorkingDay {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,4 +29,17 @@ public class WorkingDay {
     private User user;
     @Column(name = "hours", nullable = false)
     private int hours;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || Hibernate.getClass(this) != Hibernate.getClass(o)) return false;
+        WorkingDay that = (WorkingDay) o;
+        return Objects.equals(id, that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }
