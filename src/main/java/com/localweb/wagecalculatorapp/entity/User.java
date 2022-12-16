@@ -1,11 +1,11 @@
 package com.localweb.wagecalculatorapp.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.Hibernate;
 import org.hibernate.annotations.LazyCollection;
 import org.hibernate.annotations.LazyCollectionOption;
 
+import javax.persistence.*;
 import java.util.List;
 import java.util.Objects;
 

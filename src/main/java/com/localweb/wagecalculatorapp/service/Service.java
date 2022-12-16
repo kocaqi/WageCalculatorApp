@@ -48,13 +48,13 @@ public class Service implements ServiceInterface{
 
         String[] keywords = keyword.split(" ");
 
-        for (String s : keywords) {
-            Specify<User> specifyByFirstName = new Specify<>(new SearchCriteria("firstName", ":", s));
-            Specify<User> specifyByLastName = new Specify<>(new SearchCriteria("lastName", ":", s));
-            Specify<User> specifyByEmail = new Specify<>(new SearchCriteria("email", ":", s));
+        for (String key : keywords) {
+            Specify<User> specifyByFirstName = new Specify<>(new SearchCriteria("firstName", ":", key));
+            Specify<User> specifyByLastName = new Specify<>(new SearchCriteria("lastName", ":", key));
+            Specify<User> specifyByEmail = new Specify<>(new SearchCriteria("email", ":", key));
 
             List<User> userList = userRepository.findAll(
-                    Specification.where(specifyByFirstName).and(specifyByLastName).and(specifyByEmail));
+                    Specification.where(specifyByFirstName).or(specifyByLastName).or(specifyByEmail));
 
             users.addAll(userList);
         }
@@ -62,11 +62,9 @@ public class Service implements ServiceInterface{
         Specify<WorkingDay> specifyByDateFrom = new Specify<>(new SearchCriteria("date", ">", dateFrom));
         Specify<WorkingDay> specifyByDateTo = new Specify<>(new SearchCriteria("date", "<", dateTo));
 
-        double amount;
-
         for (User user : users)
         {
-            amount = 0;
+            double amount = 0;
             double hourly = user.getWage()/176.0;
 
             Specify<WorkingDay> specifyByUser = new Specify<>(new SearchCriteria("user", ":", user));

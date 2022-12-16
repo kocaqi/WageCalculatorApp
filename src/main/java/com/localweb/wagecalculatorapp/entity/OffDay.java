@@ -1,9 +1,9 @@
 package com.localweb.wagecalculatorapp.entity;
 
-import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.Hibernate;
 
+import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.Objects;
 
