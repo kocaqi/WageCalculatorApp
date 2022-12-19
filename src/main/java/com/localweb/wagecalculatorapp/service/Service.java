@@ -15,6 +15,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 
+import java.text.DecimalFormat;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -37,12 +38,12 @@ public class Service implements ServiceInterface{
     }
 
     @Override
-    public List<ResponseDTO> calculateWage(RequestDTO requestDTO) {
+    public List<ResponseDTO> calculateWage(String keyword,String dateFromArg,String dateToArg) {
         List<ResponseDTO> responses = new ArrayList<>();
 
-        String keyword = requestDTO.getKeyword();
-        LocalDate dateFrom = requestDTO.getDateFrom();
-        LocalDate dateTo = requestDTO.getDateTo();
+        /*String keyword = requestDTO.getKeyword();*/
+        LocalDate dateFrom = LocalDate.parse(dateFromArg);
+        LocalDate dateTo = LocalDate.parse(dateToArg);
 
         Set<User> users = new HashSet<>();
 
@@ -59,8 +60,8 @@ public class Service implements ServiceInterface{
             users.addAll(userList);
         }
 
-        Specify<WorkingDay> specifyByDateFrom = new Specify<>(new SearchCriteria("date", ">", dateFrom));
-        Specify<WorkingDay> specifyByDateTo = new Specify<>(new SearchCriteria("date", "<", dateTo));
+        /*Specify<WorkingDay> specifyByDateFrom = new Specify<>(new SearchCriteria("date", ">", dateFrom));
+        Specify<WorkingDay> specifyByDateTo = new Specify<>(new SearchCriteria("date", "<", dateTo));*/
 
         for (User user : users)
         {
@@ -70,7 +71,7 @@ public class Service implements ServiceInterface{
             Specify<WorkingDay> specifyByUser = new Specify<>(new SearchCriteria("user", ":", user));
 
             List<WorkingDay> workingDays = workingDayRepository.findAll(
-                    Specification.where(specifyByUser).and(specifyByDateFrom).and(specifyByDateTo));
+                    Specification.where(specifyByUser)/*.and(specifyByDateFrom).and(specifyByDateTo)*/);
 
             for(WorkingDay workingDay : workingDays)
             {
@@ -87,7 +88,7 @@ public class Service implements ServiceInterface{
                         amount+=8*hourly*1.5 + (hours-8)*hourly*2.0;
             }
             ResponseDTO response = new ResponseDTO();
-            response.setAmount(amount);
+            response.setAmount(Double.parseDouble(new DecimalFormat("0.00").format(amount)));
             response.setDateFrom(dateFrom);
             response.setDateTo(dateTo);
             response.setUserDTO(modelMapper.map(user, UserDTO.class));

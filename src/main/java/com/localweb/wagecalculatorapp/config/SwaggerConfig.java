@@ -21,7 +21,7 @@ public class SwaggerConfig {
                 "Spring Boot StoreApp REST API Documentation",
                 "1",
                 "Terms of Service",
-                new Contact("Kleo Kocaqi", "www.javaguides.net", "kleo@gmail.com"),
+                new Contact("Kleo Kocaqi", "https://www.linktr.ee/kocaqi_", "kocaqikleo@gmail.com"),
                 "License of API",
                 "API license URL",
                 Collections.emptyList()

@@ -1,14 +1,14 @@
 package com.localweb.wagecalculatorapp.controller;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.localweb.wagecalculatorapp.payload.DTO.RequestDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseDTO;
 import com.localweb.wagecalculatorapp.service.ServiceInterface;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -22,9 +22,11 @@ public class Controller {
         this.service = service;
     }
 
-    @GetMapping
-    public List<ResponseDTO> calculateWage(@RequestParam RequestDTO requestDTO){
-        return service.calculateWage(requestDTO);
+    @GetMapping("/calculate")
+    public List<ResponseDTO> calculateWage(@RequestParam String keyword,
+                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) String dateFrom,
+                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) String dateTo){
+        return service.calculateWage(keyword,dateFrom,dateTo);
     }
 
 }
