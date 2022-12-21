@@ -3,8 +3,9 @@ package com.localweb.wagecalculatorapp.service;
 import com.localweb.wagecalculatorapp.entity.OffDay;
 import com.localweb.wagecalculatorapp.entity.User;
 import com.localweb.wagecalculatorapp.entity.WorkingDay;
-import com.localweb.wagecalculatorapp.payload.DTO.RequestDTO;
-import com.localweb.wagecalculatorapp.payload.DTO.ResponseDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.DailyUserDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.ResponseByDayDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.ResponseByUserDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.UserDTO;
 import com.localweb.wagecalculatorapp.repository.OffDayRepository;
 import com.localweb.wagecalculatorapp.repository.UserRepository;
@@ -16,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.text.DecimalFormat;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,6 +30,12 @@ public class Service implements ServiceInterface{
     private final WorkingDayRepository workingDayRepository;
     private final OffDayRepository offDayRepository;
     private final ModelMapper modelMapper;
+    double normalIn = 1.0;
+    double normalExtra = 1.25;
+    double weekendIn = 1.25;
+    double weekendOut = 1.5;
+    double holidayIn = 1.5;
+    double holidayOut = 2.0;
 
     @Autowired
     public Service(UserRepository userRepository, WorkingDayRepository workingDayRepository, OffDayRepository offDayRepository, ModelMapper modelMapper) {
@@ -38,8 +46,8 @@ public class Service implements ServiceInterface{
     }
 
     @Override
-    public List<ResponseDTO> calculateWage(String keyword,String dateFromArg,String dateToArg) {
-        List<ResponseDTO> responses = new ArrayList<>();
+    public List<ResponseByUserDTO> calculateV1(String keyword, String dateFromArg, String dateToArg) {
+        List<ResponseByUserDTO> responses = new ArrayList<>();
 
         /*String keyword = requestDTO.getKeyword();*/
         LocalDate dateFrom = LocalDate.parse(dateFromArg);
@@ -75,23 +83,98 @@ public class Service implements ServiceInterface{
 
             for(WorkingDay workingDay : workingDays)
             {
+                // Optimizim i pjeses breanda if else
                 int hours = workingDay.getHours();
-                if(!isHoliday(workingDay.getDate()))
-                    if(hours<=8)
-                        amount+=hourly*hours;
-                    else
-                        amount+=8*hourly + (hours-8)*hourly*1.5;
-                else
-                    if(hours<=8)
-                        amount+=hours*hourly*1.5;
-                    else
-                        amount+=8*hourly*1.5 + (hours-8)*hourly*2.0;
+                int hoursIn;
+                int hoursOut;
+
+                if(hours <= 8){
+                    hoursIn = hours;
+                    hoursOut = 0;
+                } else {
+                    hoursIn = 8;
+                    hoursOut = hours - 8;
+                }
+
+                double hourlyIn;
+                double hourlyOut;
+                if(isHoliday(workingDay.getDate())){
+                    hourlyIn = holidayIn;
+                    hourlyOut = holidayOut;
+                }
+                else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
+                    hourlyIn = weekendIn;
+                    hourlyOut = weekendOut;
+                }
+                else {
+                    hourlyIn = normalIn;
+                    hourlyOut = normalExtra;
+                }
+                amount += hourly * (hoursIn * hourlyIn + hoursOut * hourlyOut);
             }
-            ResponseDTO response = new ResponseDTO();
+            ResponseByUserDTO response = new ResponseByUserDTO();
             response.setAmount(Double.parseDouble(new DecimalFormat("0.00").format(amount)));
             response.setDateFrom(dateFrom);
             response.setDateTo(dateTo);
             response.setUserDTO(modelMapper.map(user, UserDTO.class));
+            responses.add(response);
+        }
+        return responses;
+    }
+
+    @Override
+    public List<ResponseByDayDTO> calculateV2() {
+        // select * from working_days inner join users on users.id = working_days.user_id
+        List<ResponseByDayDTO> responses = new ArrayList<>();
+        List<WorkingDay> workingDays = workingDayRepository.findAll();
+        Set<WorkingDay> uniqueWorkingDays = new HashSet<>(workingDays);
+        for(WorkingDay workingDay : uniqueWorkingDays) {
+            ResponseByDayDTO response = new ResponseByDayDTO();
+            double dayTotal = 0;
+            List<User> users = findAllUsersThatHaveWorkedOn(workingDay);
+            for(User user : users) {
+                WorkingDay day = workingDayRepository.findByUserAndDate(user, workingDay.getDate());
+                double hourlyWageOfUser = user.getWage()/176.0;
+                double userTotal;
+
+                int hours = day.getHours();
+                int hoursIn;
+                int hoursOut;
+
+                if(hours <= 8){
+                    hoursIn = hours;
+                    hoursOut = 0;
+                } else {
+                    hoursIn = 8;
+                    hoursOut = hours - 8;
+                }
+
+                double hourlyInCoeff;
+                double hourlyOutCoeff;
+                if(isHoliday(workingDay.getDate())){
+                    hourlyInCoeff = holidayIn;
+                    hourlyOutCoeff = holidayOut;
+                }
+                else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
+                    hourlyInCoeff = weekendIn;
+                    hourlyOutCoeff = weekendOut;
+                }
+                else {
+                    hourlyInCoeff = normalIn;
+                    hourlyOutCoeff = normalExtra;
+                }
+                userTotal = hourlyWageOfUser * (hoursIn * hourlyInCoeff + hoursOut * hourlyOutCoeff);
+                DailyUserDTO dailyUserDTO = new DailyUserDTO();
+                dailyUserDTO.setId(user.getId());
+                dailyUserDTO.setEmail(user.getEmail());
+                dailyUserDTO.setFirstName(user.getFirstName());
+                dailyUserDTO.setLastName(user.getLastName());
+                dailyUserDTO.setDailyWage(Double.parseDouble(new DecimalFormat("0.00").format(userTotal)));
+                response.getUsers().add(dailyUserDTO);
+                dayTotal+=userTotal;
+            }
+            response.setDate(workingDay.getDate());
+            response.setTotal(Double.parseDouble(new DecimalFormat("0.00").format(dayTotal)));
             responses.add(response);
         }
         return responses;
@@ -104,6 +187,16 @@ public class Service implements ServiceInterface{
         for(OffDay offDay : offDays)
             offDates.add(offDay.getDate());
         return offDates.contains(date);
+    }
+
+    private List<User> findAllUsersThatHaveWorkedOn(WorkingDay date) {
+        List<User> users = userRepository.findAll();
+        List<User> response = new ArrayList<>();
+        for(User user : users) {
+            if(user.getWorkingDays().contains(date))
+                response.add(user);
+        }
+        return response;
     }
 
 }

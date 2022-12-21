@@ -5,7 +5,7 @@ import lombok.Data;
 import java.time.LocalDate;
 
 @Data
-public class ResponseDTO {
+public class ResponseByUserDTO {
     private UserDTO userDTO;
     private LocalDate dateFrom;
     private LocalDate dateTo;
