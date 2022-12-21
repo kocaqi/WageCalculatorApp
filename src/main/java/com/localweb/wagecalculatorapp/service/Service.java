@@ -127,13 +127,15 @@ public class Service implements ServiceInterface{
         // select * from working_days inner join users on users.id = working_days.user_id
         List<ResponseByDayDTO> responses = new ArrayList<>();
         List<WorkingDay> workingDays = workingDayRepository.findAll();
-        Set<WorkingDay> uniqueWorkingDays = new HashSet<>(workingDays);
-        for(WorkingDay workingDay : uniqueWorkingDays) {
+        Set<LocalDate> uniqueWorkingDays = new HashSet<>();
+        for(WorkingDay day : workingDays)
+            uniqueWorkingDays.add(day.getDate());
+        for(LocalDate workingDay : uniqueWorkingDays) {
             ResponseByDayDTO response = new ResponseByDayDTO();
             double dayTotal = 0;
             List<User> users = findAllUsersThatHaveWorkedOn(workingDay);
             for(User user : users) {
-                WorkingDay day = workingDayRepository.findByUserAndDate(user, workingDay.getDate());
+                WorkingDay day = workingDayRepository.findByUserAndDate(user, workingDay);
                 double hourlyWageOfUser = user.getWage()/176.0;
                 double userTotal;
 
@@ -151,11 +153,11 @@ public class Service implements ServiceInterface{
 
                 double hourlyInCoeff;
                 double hourlyOutCoeff;
-                if(isHoliday(workingDay.getDate())){
+                if(isHoliday(workingDay)){
                     hourlyInCoeff = holidayIn;
                     hourlyOutCoeff = holidayOut;
                 }
-                else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
+                else if(workingDay.getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDayOfWeek()==DayOfWeek.SUNDAY){
                     hourlyInCoeff = weekendIn;
                     hourlyOutCoeff = weekendOut;
                 }
@@ -173,7 +175,7 @@ public class Service implements ServiceInterface{
                 response.getUsers().add(dailyUserDTO);
                 dayTotal+=userTotal;
             }
-            response.setDate(workingDay.getDate());
+            response.setDate(workingDay);
             response.setTotal(Double.parseDouble(new DecimalFormat("0.00").format(dayTotal)));
             responses.add(response);
         }
@@ -189,14 +191,13 @@ public class Service implements ServiceInterface{
         return offDates.contains(date);
     }
 
-    private List<User> findAllUsersThatHaveWorkedOn(WorkingDay date) {
-        List<User> users = userRepository.findAll();
-        List<User> response = new ArrayList<>();
-        for(User user : users) {
-            if(user.getWorkingDays().contains(date))
-                response.add(user);
+    private List<User> findAllUsersThatHaveWorkedOn(LocalDate date) {
+        List<User> users = new ArrayList<>();
+        List<WorkingDay> workingDays = workingDayRepository.findAllByDate(date);
+        for(WorkingDay day : workingDays) {
+            users.add(day.getUser());
         }
-        return response;
+        return users;
     }
 
 }

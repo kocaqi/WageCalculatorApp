@@ -9,7 +9,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface WorkingDayRepository extends JpaRepository<WorkingDay, Long>, JpaSpecificationExecutor<WorkingDay> {
-    List<WorkingDay> findAllByUser(User user);
 
     WorkingDay findByUserAndDate(User user, LocalDate date);
+
+    List<WorkingDay> findAllByDate(LocalDate date);
 }
