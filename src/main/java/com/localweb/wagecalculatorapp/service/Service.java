@@ -3,10 +3,7 @@ package com.localweb.wagecalculatorapp.service;
 import com.localweb.wagecalculatorapp.entity.OffDay;
 import com.localweb.wagecalculatorapp.entity.User;
 import com.localweb.wagecalculatorapp.entity.WorkingDay;
-import com.localweb.wagecalculatorapp.payload.DTO.DailyUserDTO;
-import com.localweb.wagecalculatorapp.payload.DTO.ResponseByDayDTO;
-import com.localweb.wagecalculatorapp.payload.DTO.ResponseByUserDTO;
-import com.localweb.wagecalculatorapp.payload.DTO.UserDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.*;
 import com.localweb.wagecalculatorapp.repository.OffDayRepository;
 import com.localweb.wagecalculatorapp.repository.UserRepository;
 import com.localweb.wagecalculatorapp.repository.WorkingDayRepository;
@@ -19,10 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.text.DecimalFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @org.springframework.stereotype.Service
 public class Service implements ServiceInterface{
@@ -36,6 +30,7 @@ public class Service implements ServiceInterface{
     double weekendOut = 1.5;
     double holidayIn = 1.5;
     double holidayOut = 2.0;
+    DecimalFormat decimalFormat = new DecimalFormat("0.00");
 
     @Autowired
     public Service(UserRepository userRepository, WorkingDayRepository workingDayRepository, OffDayRepository offDayRepository, ModelMapper modelMapper) {
@@ -96,24 +91,24 @@ public class Service implements ServiceInterface{
                     hoursOut = hours - 8;
                 }
 
-                double hourlyIn;
-                double hourlyOut;
+                double hourlyInCoefficient;
+                double hourlyOutCoefficient;
                 if(isHoliday(workingDay.getDate())){
-                    hourlyIn = holidayIn;
-                    hourlyOut = holidayOut;
+                    hourlyInCoefficient = holidayIn;
+                    hourlyOutCoefficient = holidayOut;
                 }
                 else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
-                    hourlyIn = weekendIn;
-                    hourlyOut = weekendOut;
+                    hourlyInCoefficient = weekendIn;
+                    hourlyOutCoefficient = weekendOut;
                 }
                 else {
-                    hourlyIn = normalIn;
-                    hourlyOut = normalExtra;
+                    hourlyInCoefficient = normalIn;
+                    hourlyOutCoefficient = normalExtra;
                 }
-                amount += hourly * (hoursIn * hourlyIn + hoursOut * hourlyOut);
+                amount += hourly * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
             }
             ResponseByUserDTO response = new ResponseByUserDTO();
-            response.setAmount(Double.parseDouble(new DecimalFormat("0.00").format(amount)));
+            response.setAmount(Double.parseDouble(decimalFormat.format(amount)));
             response.setDateFrom(dateFrom);
             response.setDateTo(dateTo);
             response.setUserDTO(modelMapper.map(user, UserDTO.class));
@@ -151,32 +146,74 @@ public class Service implements ServiceInterface{
                     hoursOut = hours - 8;
                 }
 
-                double hourlyInCoeff;
-                double hourlyOutCoeff;
+                double hourlyInCoefficient;
+                double hourlyOutCoefficient;
                 if(isHoliday(workingDay)){
-                    hourlyInCoeff = holidayIn;
-                    hourlyOutCoeff = holidayOut;
+                    hourlyInCoefficient = holidayIn;
+                    hourlyOutCoefficient = holidayOut;
                 }
                 else if(workingDay.getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDayOfWeek()==DayOfWeek.SUNDAY){
-                    hourlyInCoeff = weekendIn;
-                    hourlyOutCoeff = weekendOut;
+                    hourlyInCoefficient = weekendIn;
+                    hourlyOutCoefficient = weekendOut;
                 }
                 else {
-                    hourlyInCoeff = normalIn;
-                    hourlyOutCoeff = normalExtra;
+                    hourlyInCoefficient = normalIn;
+                    hourlyOutCoefficient = normalExtra;
                 }
-                userTotal = hourlyWageOfUser * (hoursIn * hourlyInCoeff + hoursOut * hourlyOutCoeff);
+                userTotal = hourlyWageOfUser * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
                 DailyUserDTO dailyUserDTO = new DailyUserDTO();
                 dailyUserDTO.setId(user.getId());
                 dailyUserDTO.setEmail(user.getEmail());
                 dailyUserDTO.setFirstName(user.getFirstName());
                 dailyUserDTO.setLastName(user.getLastName());
-                dailyUserDTO.setDailyWage(Double.parseDouble(new DecimalFormat("0.00").format(userTotal)));
+                dailyUserDTO.setDailyWage(Double.parseDouble(decimalFormat.format(userTotal)));
                 response.getUsers().add(dailyUserDTO);
                 dayTotal+=userTotal;
             }
             response.setDate(workingDay);
-            response.setTotal(Double.parseDouble(new DecimalFormat("0.00").format(dayTotal)));
+            response.setTotal(Double.parseDouble(decimalFormat.format(dayTotal)));
+            responses.add(response);
+        }
+        return responses;
+    }
+
+    @Override
+    public List<ResponseByWorkingDayDTO> calculateV3() {
+        List<ResponseByWorkingDayDTO> responses = new ArrayList<>();
+        List<WorkingDay> workingDays = workingDayRepository.findAll();
+        for(WorkingDay workingDay : workingDays) {
+            ResponseByWorkingDayDTO response = new ResponseByWorkingDayDTO();
+            response.setUser(modelMapper.map(workingDay.getUser(), UserDTO.class));
+            response.setDate(workingDay.getDate());
+            double hourlyWageOfUser = workingDay.getUser().getWage()/176.0;
+            int hours = workingDay.getHours();
+            int hoursIn;
+            int hoursOut;
+
+            if(hours <= 8){
+                hoursIn = hours;
+                hoursOut = 0;
+            } else {
+                hoursIn = 8;
+                hoursOut = hours - 8;
+            }
+
+            double hourlyInCoefficient;
+            double hourlyOutCoefficient;
+            if(isHoliday(workingDay.getDate())){
+                hourlyInCoefficient = holidayIn;
+                hourlyOutCoefficient = holidayOut;
+            }
+            else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
+                hourlyInCoefficient = weekendIn;
+                hourlyOutCoefficient = weekendOut;
+            }
+            else {
+                hourlyInCoefficient = normalIn;
+                hourlyOutCoefficient = normalExtra;
+            }
+            double amount = hourlyWageOfUser * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
+            response.setAmount(Double.parseDouble(decimalFormat.format(amount)));
             responses.add(response);
         }
         return responses;

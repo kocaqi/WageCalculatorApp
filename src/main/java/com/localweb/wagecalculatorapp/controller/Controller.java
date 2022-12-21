@@ -2,6 +2,7 @@ package com.localweb.wagecalculatorapp.controller;
 
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByDayDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByUserDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.ResponseByWorkingDayDTO;
 import com.localweb.wagecalculatorapp.service.ServiceInterface;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -33,6 +34,11 @@ public class Controller {
     @GetMapping("/calculate/v2")
     public List<ResponseByDayDTO> calculateV2(){
         return service.calculateV2();
+    }
+
+    @GetMapping("/calculate/v3")
+    public List<ResponseByWorkingDayDTO> calculateV3(){
+        return service.calculateV3();
     }
 
 }
