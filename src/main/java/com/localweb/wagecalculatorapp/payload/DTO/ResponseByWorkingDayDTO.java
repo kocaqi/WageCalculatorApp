@@ -8,5 +8,6 @@ import java.time.LocalDate;
 public class ResponseByWorkingDayDTO {
     private LocalDate date;
     private UserDTO user;
+    private int hours;
     private double amount;
 }

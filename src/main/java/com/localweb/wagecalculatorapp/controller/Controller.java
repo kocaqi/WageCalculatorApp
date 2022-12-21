@@ -1,6 +1,7 @@
 package com.localweb.wagecalculatorapp.controller;
 
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByDayDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.ResponseByTotals;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByUserDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByWorkingDayDTO;
 import com.localweb.wagecalculatorapp.service.ServiceInterface;
@@ -39,6 +40,11 @@ public class Controller {
     @GetMapping("/calculate/v3")
     public List<ResponseByWorkingDayDTO> calculateV3(){
         return service.calculateV3();
+    }
+
+    @GetMapping("/calculateTotals")
+    public List<ResponseByTotals> calculateTotalsByUser(){
+        return service.calculateTotalsByUser();
     }
 
 }

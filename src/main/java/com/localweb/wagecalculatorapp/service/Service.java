@@ -69,7 +69,6 @@ public class Service implements ServiceInterface{
         for (User user : users)
         {
             double amount = 0;
-            double hourly = user.getWage()/176.0;
 
             Specify<WorkingDay> specifyByUser = new Specify<>(new SearchCriteria("user", ":", user));
 
@@ -77,36 +76,7 @@ public class Service implements ServiceInterface{
                     Specification.where(specifyByUser)/*.and(specifyByDateFrom).and(specifyByDateTo)*/);
 
             for(WorkingDay workingDay : workingDays)
-            {
-                // Optimizim i pjeses breanda if else
-                int hours = workingDay.getHours();
-                int hoursIn;
-                int hoursOut;
-
-                if(hours <= 8){
-                    hoursIn = hours;
-                    hoursOut = 0;
-                } else {
-                    hoursIn = 8;
-                    hoursOut = hours - 8;
-                }
-
-                double hourlyInCoefficient;
-                double hourlyOutCoefficient;
-                if(isHoliday(workingDay.getDate())){
-                    hourlyInCoefficient = holidayIn;
-                    hourlyOutCoefficient = holidayOut;
-                }
-                else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
-                    hourlyInCoefficient = weekendIn;
-                    hourlyOutCoefficient = weekendOut;
-                }
-                else {
-                    hourlyInCoefficient = normalIn;
-                    hourlyOutCoefficient = normalExtra;
-                }
-                amount += hourly * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
-            }
+                amount += calculateDailyAmount(workingDay);
             ResponseByUserDTO response = new ResponseByUserDTO();
             response.setAmount(Double.parseDouble(decimalFormat.format(amount)));
             response.setDateFrom(dateFrom);
@@ -131,36 +101,7 @@ public class Service implements ServiceInterface{
             List<User> users = findAllUsersThatHaveWorkedOn(workingDay);
             for(User user : users) {
                 WorkingDay day = workingDayRepository.findByUserAndDate(user, workingDay);
-                double hourlyWageOfUser = user.getWage()/176.0;
-                double userTotal;
-
-                int hours = day.getHours();
-                int hoursIn;
-                int hoursOut;
-
-                if(hours <= 8){
-                    hoursIn = hours;
-                    hoursOut = 0;
-                } else {
-                    hoursIn = 8;
-                    hoursOut = hours - 8;
-                }
-
-                double hourlyInCoefficient;
-                double hourlyOutCoefficient;
-                if(isHoliday(workingDay)){
-                    hourlyInCoefficient = holidayIn;
-                    hourlyOutCoefficient = holidayOut;
-                }
-                else if(workingDay.getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDayOfWeek()==DayOfWeek.SUNDAY){
-                    hourlyInCoefficient = weekendIn;
-                    hourlyOutCoefficient = weekendOut;
-                }
-                else {
-                    hourlyInCoefficient = normalIn;
-                    hourlyOutCoefficient = normalExtra;
-                }
-                userTotal = hourlyWageOfUser * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
+                double userTotal = calculateDailyAmount(day);
                 DailyUserDTO dailyUserDTO = new DailyUserDTO();
                 dailyUserDTO.setId(user.getId());
                 dailyUserDTO.setEmail(user.getEmail());
@@ -183,41 +124,73 @@ public class Service implements ServiceInterface{
         List<WorkingDay> workingDays = workingDayRepository.findAll();
         for(WorkingDay workingDay : workingDays) {
             ResponseByWorkingDayDTO response = new ResponseByWorkingDayDTO();
-            response.setUser(modelMapper.map(workingDay.getUser(), UserDTO.class));
             response.setDate(workingDay.getDate());
-            double hourlyWageOfUser = workingDay.getUser().getWage()/176.0;
-            int hours = workingDay.getHours();
-            int hoursIn;
-            int hoursOut;
-
-            if(hours <= 8){
-                hoursIn = hours;
-                hoursOut = 0;
-            } else {
-                hoursIn = 8;
-                hoursOut = hours - 8;
-            }
-
-            double hourlyInCoefficient;
-            double hourlyOutCoefficient;
-            if(isHoliday(workingDay.getDate())){
-                hourlyInCoefficient = holidayIn;
-                hourlyOutCoefficient = holidayOut;
-            }
-            else if(workingDay.getDate().getDayOfWeek()==DayOfWeek.SATURDAY || workingDay.getDate().getDayOfWeek()==DayOfWeek.SUNDAY){
-                hourlyInCoefficient = weekendIn;
-                hourlyOutCoefficient = weekendOut;
-            }
-            else {
-                hourlyInCoefficient = normalIn;
-                hourlyOutCoefficient = normalExtra;
-            }
-            double amount = hourlyWageOfUser * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
+            response.setUser(modelMapper.map(workingDay.getUser(), UserDTO.class));
+            response.setHours(workingDay.getHours());
+            double amount = calculateDailyAmount(workingDay);
             response.setAmount(Double.parseDouble(decimalFormat.format(amount)));
             responses.add(response);
         }
         return responses;
     }
+
+    @Override
+    public List<ResponseByTotals> calculateTotalsByUser() {
+        List<ResponseByTotals> responses = new ArrayList<>();
+        List<User> users = userRepository.findAll();
+        for(User user : users){
+            ResponseByTotals response = new ResponseByTotals();
+            double hourlyWageOfUser = user.getWage()/176.0;
+            response.setUser(modelMapper.map(user, UserDTO.class));
+            int responseHoursIn = 0;
+            int responseHoursOut = 0;
+            int responseTotalHours = 0;
+            double responseTotalAmount = 0;
+            List<WorkingDay> workingDays = workingDayRepository.findAllByUser(user);
+            for (WorkingDay workingDay : workingDays) {
+                LocalDate date = workingDay.getDate();
+
+                int hours = workingDay.getHours();
+                responseTotalHours+=hours;
+
+                int hoursIn;
+                int hoursOut;
+                if(hours<=8) {
+                    hoursIn=hours;
+                    hoursOut=0;
+                }
+                else {
+                    hoursIn=8;
+                    hoursOut=hours-8;
+                }
+                responseHoursIn+=hoursIn;
+                responseHoursOut+=hoursOut;
+                double hourlyInCoefficient;
+                double hourlyOutCoefficient;
+                if(isHoliday(date)){
+                    hourlyInCoefficient = holidayIn;
+                    hourlyOutCoefficient = holidayOut;
+                }
+                else if(date.getDayOfWeek()==DayOfWeek.SATURDAY || date.getDayOfWeek()==DayOfWeek.SUNDAY){
+                    hourlyInCoefficient = weekendIn;
+                    hourlyOutCoefficient = weekendOut;
+                }
+                else {
+                    hourlyInCoefficient = normalIn;
+                    hourlyOutCoefficient = normalExtra;
+                }
+                double amount = hourlyWageOfUser * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
+                responseTotalAmount+=amount;
+            }
+            response.setTotalHours(responseTotalHours);
+            response.setHoursIn(responseHoursIn);
+            response.setHoursOut(responseHoursOut);
+            response.setTotalAmount(Double.parseDouble(decimalFormat.format(responseTotalAmount)));
+            responses.add(response);
+        }
+        return responses;
+    }
+
 
     private boolean isHoliday(LocalDate date)
     {
@@ -235,6 +208,38 @@ public class Service implements ServiceInterface{
             users.add(day.getUser());
         }
         return users;
+    }
+
+    private double calculateDailyAmount(WorkingDay workingDay) {
+        LocalDate date = workingDay.getDate();
+        double hourlyWageOfUser = workingDay.getUser().getWage()/176.0;
+        int hours = workingDay.getHours();
+        int hoursIn;
+        int hoursOut;
+
+        if(hours <= 8){
+            hoursIn = hours;
+            hoursOut = 0;
+        } else {
+            hoursIn = 8;
+            hoursOut = hours - 8;
+        }
+
+        double hourlyInCoefficient;
+        double hourlyOutCoefficient;
+        if(isHoliday(date)){
+            hourlyInCoefficient = holidayIn;
+            hourlyOutCoefficient = holidayOut;
+        }
+        else if(date.getDayOfWeek()==DayOfWeek.SATURDAY || date.getDayOfWeek()==DayOfWeek.SUNDAY){
+            hourlyInCoefficient = weekendIn;
+            hourlyOutCoefficient = weekendOut;
+        }
+        else {
+            hourlyInCoefficient = normalIn;
+            hourlyOutCoefficient = normalExtra;
+        }
+        return hourlyWageOfUser * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
     }
 
 }

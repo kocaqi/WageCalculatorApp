@@ -1,6 +1,7 @@
 package com.localweb.wagecalculatorapp.service;
 
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByDayDTO;
+import com.localweb.wagecalculatorapp.payload.DTO.ResponseByTotals;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByUserDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByWorkingDayDTO;
 
@@ -12,4 +13,6 @@ public interface ServiceInterface {
     List<ResponseByDayDTO> calculateV2();
 
     List<ResponseByWorkingDayDTO> calculateV3();
+
+    List<ResponseByTotals> calculateTotalsByUser();
 }
