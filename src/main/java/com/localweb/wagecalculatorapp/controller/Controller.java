@@ -42,9 +42,14 @@ public class Controller {
         return service.calculateV3();
     }
 
-    @GetMapping("/calculateTotals")
+    @GetMapping("/calculateTotalsByUsers")
     public List<ResponseByTotals> calculateTotalsByUser(){
         return service.calculateTotalsByUser();
+    }
+
+    @GetMapping("/calculateTotalsByWorkingDays")
+    public List<ResponseByTotals> calculateTotalsByWorkingDays(){
+        return service.calculateTotalsByWorkingDays();
     }
 
 }

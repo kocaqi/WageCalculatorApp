@@ -191,6 +191,71 @@ public class Service implements ServiceInterface{
         return responses;
     }
 
+    @Override
+    public List<ResponseByTotals> calculateTotalsByWorkingDays() {
+        List<ResponseByTotals> responses = new ArrayList<>();
+        List<WorkingDay> workingDays = workingDayRepository.findAll();
+        for(WorkingDay workingDay : workingDays) {
+            ResponseByTotals response = new ResponseByTotals();
+            User user = workingDay.getUser();
+            response.setUser(modelMapper.map(user, UserDTO.class));
+            boolean newUser = true;
+            for(ResponseByTotals r : responses) {
+                if(r.getUser().equals(modelMapper.map(user, UserDTO.class))) {
+                    newUser = false;
+                    response = r;
+                }
+            }
+
+            LocalDate date = workingDay.getDate();
+
+            int hours = workingDay.getHours();
+            response.setTotalHours(response.getTotalHours()+hours);
+
+            int hoursIn;
+            int hoursOut;
+            if(hours<=8) {
+                hoursIn=hours;
+                hoursOut=0;
+            }
+            else {
+                hoursIn=8;
+                hoursOut=hours-8;
+            }
+            response.setHoursIn(response.getHoursIn()+hoursIn);
+            response.setHoursOut(response.getHoursOut()+hoursOut);
+            double hourlyInCoefficient;
+            double hourlyOutCoefficient;
+            if(isHoliday(date)){
+                hourlyInCoefficient = holidayIn;
+                hourlyOutCoefficient = holidayOut;
+            }
+            else if(date.getDayOfWeek()==DayOfWeek.SATURDAY || date.getDayOfWeek()==DayOfWeek.SUNDAY){
+                hourlyInCoefficient = weekendIn;
+                hourlyOutCoefficient = weekendOut;
+            }
+            else {
+                hourlyInCoefficient = normalIn;
+                hourlyOutCoefficient = normalExtra;
+            }
+            double amount = user.getWage()/176.0 * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
+            response.setTotalAmount(response.getTotalAmount()+amount);
+            response.setTotalAmount(Double.parseDouble(decimalFormat.format(response.getTotalAmount())));
+            if(newUser){
+                responses.add(response);
+            }
+        }
+        return responses;
+    }
+
+    private ResponseByTotals findResponseByUser(List<ResponseByTotals> responses, User user) {
+        for(ResponseByTotals response : responses) {
+            if(response.getUser().equals(modelMapper.map(user, UserDTO.class)))
+                return response;
+        }
+        return new ResponseByTotals();
+    }
+
 
     private boolean isHoliday(LocalDate date)
     {

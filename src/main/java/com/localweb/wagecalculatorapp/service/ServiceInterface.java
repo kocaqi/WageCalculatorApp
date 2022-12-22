@@ -15,4 +15,6 @@ public interface ServiceInterface {
     List<ResponseByWorkingDayDTO> calculateV3();
 
     List<ResponseByTotals> calculateTotalsByUser();
+
+    List<ResponseByTotals> calculateTotalsByWorkingDays();
 }
