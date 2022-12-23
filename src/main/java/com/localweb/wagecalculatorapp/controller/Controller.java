@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Collection;
 import java.util.List;
 
 @RestController
@@ -50,6 +51,11 @@ public class Controller {
     @GetMapping("/calculateTotalsByWorkingDays")
     public List<ResponseByTotals> calculateTotalsByWorkingDays(){
         return service.calculateTotalsByWorkingDays();
+    }
+
+    @GetMapping("/calculateTotalsUsingHashMaps")
+    public Collection<ResponseByTotals> calculateTotalsUsingHashMaps(){
+        return service.calculateTotalsUsingHashMaps();
     }
 
 }

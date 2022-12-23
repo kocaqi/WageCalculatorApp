@@ -5,6 +5,7 @@ import com.localweb.wagecalculatorapp.payload.DTO.ResponseByTotals;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByUserDTO;
 import com.localweb.wagecalculatorapp.payload.DTO.ResponseByWorkingDayDTO;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ServiceInterface {
@@ -17,4 +18,6 @@ public interface ServiceInterface {
     List<ResponseByTotals> calculateTotalsByUser();
 
     List<ResponseByTotals> calculateTotalsByWorkingDays();
+
+    Collection<ResponseByTotals> calculateTotalsUsingHashMaps();
 }
