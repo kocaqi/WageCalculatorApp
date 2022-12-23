@@ -16,6 +16,7 @@ import org.springframework.data.jpa.domain.Specification;
 import java.text.DecimalFormat;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.Month;
 import java.util.*;
 
 @org.springframework.stereotype.Service
@@ -293,6 +294,72 @@ public class Service implements ServiceInterface{
             double amount = user.getWage()/176.0 * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
             response.setTotalAmount(response.getTotalAmount()+amount);
             response.setTotalAmount(Double.parseDouble(decimalFormat.format(response.getTotalAmount())));
+            map.put(userId, response);
+        }
+        return map.values();
+    }
+
+    @Override
+    public Collection<ResponseByMonths> calculateTotalsByMonths() {
+        HashMap<Long, ResponseByMonths> map = new HashMap<>();
+        HashMap<Key, MonthDTO> months = new HashMap<>();
+        List<WorkingDay> workingDays = workingDayRepository.findAll();
+        for(WorkingDay workingDay : workingDays) {
+            User user = workingDay.getUser();
+            LocalDate date = workingDay.getDate();
+            ResponseByMonths response = new ResponseByMonths();
+            long userId = user.getId();
+            if(map.containsKey(userId))
+                response=map.get(userId);
+            response.setUser(modelMapper.map(user, UserDTO.class));
+            int hours = workingDay.getHours();
+            response.setTotalHours(response.getTotalHours()+hours);
+
+            int hoursIn;
+            int hoursOut;
+            if(hours<=8) {
+                hoursIn=hours;
+                hoursOut=0;
+            }
+            else {
+                hoursIn=8;
+                hoursOut=hours-8;
+            }
+            response.setHoursIn(response.getHoursIn()+hoursIn);
+            response.setHoursOut(response.getHoursOut()+hoursOut);
+            double hourlyInCoefficient;
+            double hourlyOutCoefficient;
+            if(isHoliday(date)){
+                hourlyInCoefficient = holidayIn;
+                hourlyOutCoefficient = holidayOut;
+            }
+            else if(date.getDayOfWeek()==DayOfWeek.SATURDAY || date.getDayOfWeek()==DayOfWeek.SUNDAY){
+                hourlyInCoefficient = weekendIn;
+                hourlyOutCoefficient = weekendOut;
+            }
+            else {
+                hourlyInCoefficient = normalIn;
+                hourlyOutCoefficient = normalExtra;
+            }
+            double amount = user.getWage()/176.0 * (hoursIn * hourlyInCoefficient + hoursOut * hourlyOutCoefficient);
+            response.setTotalAmount(response.getTotalAmount()+amount);
+            response.setTotalAmount(Double.parseDouble(decimalFormat.format(response.getTotalAmount())));
+
+            MonthDTO monthDTO = new MonthDTO();
+            Month month = date.getMonth();
+            int year = date.getYear();
+            Key key = new Key(userId, month, year);
+            if(months.containsKey(key))
+                monthDTO = months.get(key);
+            monthDTO.setMonth(month);
+            monthDTO.setYear(year);
+            monthDTO.setHoursIn(monthDTO.getHoursIn()+hoursIn);
+            monthDTO.setHoursOut(monthDTO.getHoursOut()+hoursOut);
+            monthDTO.setTotalHours(monthDTO.getTotalHours()+hours);
+            monthDTO.setTotalAmount(Double.parseDouble(decimalFormat.format(monthDTO.getTotalAmount()+amount)));
+            months.put(key, monthDTO);
+            if(!response.getMonths().contains(monthDTO))
+                response.getMonths().add(monthDTO);
             map.put(userId, response);
         }
         return map.values();
